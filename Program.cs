@@ -31,7 +31,47 @@ app.UseCors();
 
 Database.Inicializar();
 
+void GarantirPeriodoAtual()
+{
+    using var conn = Database.GetConnection();
+    conn.Open();
 
+    var existeAberto = conn.CreateCommand();
+    existeAberto.CommandText = @"
+        SELECT COUNT(*)
+        FROM Periodos
+        WHERE Fechado = 0
+    ";
+
+    int abertos = Convert.ToInt32(existeAberto.ExecuteScalar());
+
+    if (abertos > 0)
+        return;
+
+    var agora = DateTime.Now;
+
+    string nome = agora.ToString(
+        "MMMM/yyyy",
+        new System.Globalization.CultureInfo("pt-BR")
+    );
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        INSERT INTO Periodos
+        (Nome, Mes, Ano, Fechado)
+        VALUES
+        (@nome, @mes, @ano, 0)
+    ";
+
+    cmd.Parameters.AddWithValue("@nome", nome);
+    cmd.Parameters.AddWithValue("@mes", agora.Month);
+    cmd.Parameters.AddWithValue("@ano", agora.Year);
+
+    cmd.ExecuteNonQuery();
+}
+
+GarantirPeriodoAtual();
 // =======================
 //  HELPERS
 // =======================
