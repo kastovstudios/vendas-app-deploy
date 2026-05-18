@@ -2,9 +2,11 @@ using Microsoft.Data.Sqlite;
 
 public static class Database
 {
+    private static string connectionString =
+    "Data Source=/app/data/banco.db";
     public static SqliteConnection GetConnection()
     {
-        return new SqliteConnection("Data Source=banco.db");
+        return new SqliteConnection(connectionString);
     }
 
     public static void Inicializar()
