@@ -15,7 +15,7 @@ string evolutionInstance =
 string evolutionApiKey =
     Environment.GetEnvironmentVariable("EVOLUTION_API_KEY");
 
-builder.WebHost.UseUrls("http://0.0.0.0:5160");
+builder.WebHost.UseUrls("http://0.0.0.0:8080");
 
 builder.Services.AddCors(options =>
 {
