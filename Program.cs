@@ -292,6 +292,30 @@ app.MapPost("/admin/produto", async (HttpRequest request) =>
 //  COMPRAS
 // =======================
 
+app.MapGet("/setup/admin/{telefone}", (string telefone) =>
+{
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        UPDATE Usuarios
+        SET IsAdmin = 1
+        WHERE Telefone = @t
+    ";
+
+    cmd.Parameters.AddWithValue("@t", telefone);
+
+    int linhas = cmd.ExecuteNonQuery();
+
+    return Results.Ok(new
+    {
+        atualizado = linhas
+    });
+});
+
+
 app.MapPost("/comprar", async (HttpRequest request) =>
 {
     var userId = GetUserId(request);
