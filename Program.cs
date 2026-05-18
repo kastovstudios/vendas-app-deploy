@@ -854,10 +854,12 @@ app.MapPost("/admin/cobrar-clientes/{periodoId}", async (int periodoId, HttpRequ
     {
         string mensagem =
             $"Bom dia {cliente.Posto} {cliente.Nome}!\n" +
-            $"Segue o valor em aberto referente ao mês selecionado.\n" +
+            $"Segue o valor do que consumiu na CCAP durante o mês anterior\n" +
             $"Valor: R$ {cliente.Total:F2}.\n\n" +
             $"Pix: matheusmatft@gmail.com\n\n" +
-            $"FAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO.";
+            $"*Banco NEON*\n\n"+
+            $"FAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO\n"+
+            $"Obs: Caso tenha alguma dúvida sobre valores ou algum item, só mencionar que verificamos assinatura.";
 
         bool enviado = await EnviarWhatsApp(cliente.Telefone, mensagem);
 
