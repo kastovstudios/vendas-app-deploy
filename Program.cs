@@ -75,7 +75,7 @@ GarantirPeriodoAtual();
 // =======================
 //  HELPERS
 // =======================
-record CobrarClienteDTO(int UsuarioId, int PeriodoId);
+
 
 string HashSenha(string senha)
 {
@@ -1195,3 +1195,5 @@ async Task<bool> EnviarWhatsApp(string numero, string mensagem)
 }
 
 app.Run();
+
+record CobrarClienteDTO(int UsuarioId, int PeriodoId);
