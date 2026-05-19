@@ -317,6 +317,7 @@ async function fecharMes(){
 }
 
 async function cobrarClientes(){
+
     if(!confirm("Enviar cobrança para os clientes do mês selecionado?")){
         return;
     }
@@ -324,17 +325,51 @@ async function cobrarClientes(){
     const token = localStorage.getItem("token");
     const periodoId = document.getElementById("periodoDashboard").value;
 
-    if(!periodoId){
-        alert("Selecione um mês");
-        return;
+    const overlay = document.getElementById("loadingOverlay");
+    const texto = document.getElementById("loadingTexto");
+
+    overlay.style.display = "flex";
+
+    try{
+        const res = await fetch(`${API}/admin/clientes-devendo/${periodoId}`, {
+            headers:{ Authorization: token }
+        });
+
+        const clientes = await res.json();
+
+        if(clientes.length === 0){
+            overlay.style.display = "none";
+            alert("Nenhum cliente com dívida neste mês.");
+            return;
+        }
+
+        for(let i = 0; i < clientes.length; i++){
+
+            texto.innerText =
+                `Enviando mensagens... (${i + 1}/${clientes.length})`;
+
+            await fetch(`${API}/admin/cobrar-cliente`, {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json",
+                    Authorization: token
+                },
+                body: JSON.stringify({
+                    usuarioId: clientes[i].id,
+                    periodoId: parseInt(periodoId)
+                })
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 8000));
+        }
+
+        overlay.style.display = "none";
+        alert("Cobranças enviadas com sucesso!");
     }
-
-    const res = await fetch(`${API}/admin/cobrar-clientes/${periodoId}`, {
-        method: "POST",
-        headers: { Authorization: token }
-    });
-
-    alert(await res.text());
+    catch{
+        overlay.style.display = "none";
+        alert("Erro ao enviar cobranças.");
+    }
 }
 
 async function carregarClientes(){
