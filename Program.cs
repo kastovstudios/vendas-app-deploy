@@ -75,6 +75,7 @@ GarantirPeriodoAtual();
 // =======================
 //  HELPERS
 // =======================
+record CobrarClienteDTO(int UsuarioId, int PeriodoId);
 
 string HashSenha(string senha)
 {
@@ -870,6 +871,103 @@ app.MapPost("/admin/cobrar-clientes/{periodoId}", async (int periodoId, HttpRequ
     }
 
     return Results.Ok($"Cobranças enviadas: {enviados}");
+});
+
+app.MapGet("/admin/clientes-devendo/{periodoId}", (int periodoId, HttpRequest request) =>
+{
+    if (!IsAdmin(request))
+        return Results.Unauthorized();
+
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        SELECT 
+            u.Id,
+            u.Nome,
+            u.Posto,
+            u.Telefone,
+            SUM(c.Quantidade * p.Preco) AS Total
+        FROM Consumo c
+        JOIN Usuarios u ON c.UsuarioId = u.Id
+        JOIN Produtos p ON c.ProdutoId = p.Id
+        WHERE c.PeriodoId = @periodo
+        GROUP BY u.Id, u.Nome, u.Posto, u.Telefone
+        HAVING Total > 0";
+
+    cmd.Parameters.AddWithValue("@periodo", periodoId);
+
+    var reader = cmd.ExecuteReader();
+    var lista = new List<object>();
+
+    while(reader.Read())
+    {
+        lista.Add(new
+        {
+            id = reader.GetInt32(0),
+            nome = reader.GetString(1),
+            posto = reader.IsDBNull(2) ? "" : reader.GetString(2),
+            telefone = reader.GetString(3),
+            total = reader.GetDouble(4)
+        });
+    }
+
+    return Results.Ok(lista);
+});
+
+app.MapPost("/admin/cobrar-cliente", async (CobrarClienteDTO dto, HttpRequest request) =>
+{
+    if (!IsAdmin(request))
+        return Results.Unauthorized();
+
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        SELECT 
+            u.Nome,
+            u.Posto,
+            u.Telefone,
+            SUM(c.Quantidade * p.Preco) AS Total
+        FROM Consumo c
+        JOIN Usuarios u ON c.UsuarioId = u.Id
+        JOIN Produtos p ON c.ProdutoId = p.Id
+        WHERE c.UsuarioId = @usuario
+        AND c.PeriodoId = @periodo
+        GROUP BY u.Nome, u.Posto, u.Telefone";
+
+    cmd.Parameters.AddWithValue("@usuario", dto.UsuarioId);
+    cmd.Parameters.AddWithValue("@periodo", dto.PeriodoId);
+
+    var reader = cmd.ExecuteReader();
+
+    if(!reader.Read())
+        return Results.NotFound();
+
+    string nome = reader.GetString(0);
+    string posto = reader.IsDBNull(1) ? "" : reader.GetString(1);
+    string telefone = "55" + reader.GetString(2);
+    double total = reader.GetDouble(3);
+
+    string mensagem =
+        $"Bom dia {posto} {nome}!\n" +
+        $"Segue o valor do que consumiu na CCAP durante o mês anterior\n" +
+        $"Valor: R$ {total:F2}.\n\n" +
+        $"Pix: matheusmatft@gmail.com\n\n" +
+        $"*Banco NEON*\n\n" +
+        $"FAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO\n" +
+        $"Obs: Caso tenha alguma dúvida sobre valores ou algum item, só mencionar que verificamos.";
+
+    bool enviado = await EnviarWhatsApp(telefone, mensagem);
+
+    if(!enviado)
+        return Results.BadRequest("Erro ao enviar mensagem.");
+
+    return Results.Ok();
 });
 
 app.MapGet("/admin/periodos", (HttpRequest request) =>
