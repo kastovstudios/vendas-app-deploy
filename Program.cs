@@ -376,8 +376,12 @@ app.MapPost("/comprar", async (HttpRequest request) =>
     int periodoId = GetPeriodoAbertoId(conn);
 
     // DATA DA COMPRA
+    TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+
+    DateTime horarioBrasil = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+
     string dataHora =
-        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        horarioBrasil.ToString("yyyy-MM-dd HH:mm:ss");
 
     double totalGeral = 0;
 
