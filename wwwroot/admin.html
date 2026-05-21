@@ -19,6 +19,7 @@
         <button onclick="mostrar('produtos')">Produtos</button>
         <button onclick="mostrar('adicionar')">Adicionar Compra</button>
         <button onclick="mostrar('relatorios')">Relatórios</button>
+        <button onclick="mostrar('configuracoes')">Configurações</button>
     </div>
 
     <div class="content">
@@ -161,6 +162,75 @@
 
         </div>
 
+        <div id="configuracoes" style="display:none;">
+
+            <h2>Configurações</h2>
+
+            <h3>Alterar dados do usuário</h3>
+
+            <select id="filtroPostoConfig" onchange="filtrarClientesConfig()">
+                <option value="">Todos</option>
+                <option value="Sd Ev">Sd Ev</option>
+                <option value="Sd">Sd</option>
+                <option value="Cb">Cb</option>
+                <option value="3º Sgt">3º Sgt</option>
+                <option value="2º Sgt">2º Sgt</option>
+                <option value="1º Sgt">1º Sgt</option>
+                <option value="Sub Ten">Sub Ten</option>
+                <option value="Asp">Asp</option>
+                <option value="2º Ten">2º Ten</option>
+                <option value="1º Ten">1º Ten</option>
+                <option value="Cap">Cap</option>
+                <option value="Maj">Maj</option>
+                <option value="TC">TC</option>
+                <option value="Cel">Cel</option>
+            </select>
+
+            <div class="pesquisa-container">
+                <input type="text" id="pesquisaClienteConfig" placeholder="Pesquisar cliente..." onkeyup="filtrarClientesConfig()">
+                <div id="resultadosClientesConfig" class="resultados-clientes"></div>
+            </div>
+
+            <br>
+
+            <div id="formConfigUsuario" style="display:none;">
+
+                <input id="configNome" placeholder="Nome de guerra">
+
+                <select id="configPosto">
+                    <option value="Sd Ev">Sd Ev</option>
+                    <option value="Sd">Sd</option>
+                    <option value="Cb">Cb</option>
+                    <option value="3º Sgt">3º Sgt</option>
+                    <option value="2º Sgt">2º Sgt</option>
+                    <option value="1º Sgt">1º Sgt</option>
+                    <option value="Sub Ten">Sub Ten</option>
+                    <option value="Asp">Asp</option>
+                    <option value="2º Ten">2º Ten</option>
+                    <option value="1º Ten">1º Ten</option>
+                    <option value="Cap">Cap</option>
+                    <option value="Maj">Maj</option>
+                    <option value="TC">TC</option>
+                    <option value="Cel">Cel</option>
+                </select>
+
+                <input id="configTelefone" placeholder="Telefone">
+
+                <button onclick="salvarConfiguracaoUsuario()">
+                    Salvar Alterações
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display:none;">
+    <div class="spinner"></div>
+    <div id="loadingTexto" class="loading-texto">
+        Enviando mensagens...
     </div>
 </div>
 
@@ -170,6 +240,7 @@ const API = window.location.origin;
 let clientesCache = [];
 let clienteSelecionado = null;
 let clienteHistoricoSelecionado = null;
+let clienteConfigSelecionado = null;
 let userId = null;
 
 async function verificarAdmin(){
@@ -244,11 +315,12 @@ async function carregarPeriodos(){
 
 function mostrar(tela){
     const telas = [
-    "dashboard",
-    "clientes",
-    "produtos",
-    "adicionar",
-    "relatorios"
+        "dashboard",
+        "clientes",
+        "produtos",
+        "adicionar",
+        "relatorios",
+        "configuracoes"
     ];
 
     telas.forEach(id => {
@@ -261,25 +333,15 @@ function mostrar(tela){
 
     document.getElementById(tela).style.display = "block";
 
-    if(tela === "dashboard"){
-        carregarDashboard();
-    }
-
-    if(tela === "clientes"){
-        carregarClientes();
-    }
-
-    if(tela === "produtos"){
-        carregarProdutos();
-    }
-
+    if(tela === "dashboard") carregarDashboard();
+    if(tela === "clientes") carregarClientes();
+    if(tela === "produtos") carregarProdutos();
     if(tela === "adicionar"){
         carregarClientesCompra();
         carregarProdutosCompra();
     }
-    if(tela === "relatorios"){
-        carregarProdutosRelatorio();
-    }
+    if(tela === "relatorios") carregarProdutosRelatorio();
+    if(tela === "configuracoes") carregarConfiguracoes();
 }
 
 async function carregarDashboard(){
@@ -317,6 +379,7 @@ async function fecharMes(){
 }
 
 async function cobrarClientes(){
+
     if(!confirm("Enviar cobrança para os clientes do mês selecionado?")){
         return;
     }
@@ -324,17 +387,51 @@ async function cobrarClientes(){
     const token = localStorage.getItem("token");
     const periodoId = document.getElementById("periodoDashboard").value;
 
-    if(!periodoId){
-        alert("Selecione um mês");
-        return;
+    const overlay = document.getElementById("loadingOverlay");
+    const texto = document.getElementById("loadingTexto");
+
+    overlay.style.display = "flex";
+
+    try{
+        const res = await fetch(`${API}/admin/clientes-devendo/${periodoId}`, {
+            headers:{ Authorization: token }
+        });
+
+        const clientes = await res.json();
+
+        if(clientes.length === 0){
+            overlay.style.display = "none";
+            alert("Nenhum cliente com dívida neste mês.");
+            return;
+        }
+
+        for(let i = 0; i < clientes.length; i++){
+
+            texto.innerText =
+                `Enviando mensagens... (${i + 1}/${clientes.length})`;
+
+            await fetch(`${API}/admin/cobrar-cliente`, {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json",
+                    Authorization: token
+                },
+                body: JSON.stringify({
+                    usuarioId: clientes[i].id,
+                    periodoId: parseInt(periodoId)
+                })
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 8000));
+        }
+
+        overlay.style.display = "none";
+        alert("Cobranças enviadas com sucesso!");
     }
-
-    const res = await fetch(`${API}/admin/cobrar-clientes/${periodoId}`, {
-        method: "POST",
-        headers: { Authorization: token }
-    });
-
-    alert(await res.text());
+    catch{
+        overlay.style.display = "none";
+        alert("Erro ao enviar cobranças.");
+    }
 }
 
 async function carregarClientes(){
@@ -354,15 +451,12 @@ function filtrarClientesHistorico(){
         .trim();
 
     const postoSelecionado = document.getElementById("filtroPostoHistorico").value;
-
     const resultados = document.getElementById("resultadosClientesHistorico");
 
     resultados.innerHTML = "";
     clienteHistoricoSelecionado = null;
 
-    if(texto.length === 0){
-        return;
-    }
+    if(texto.length === 0) return;
 
     const filtrados = clientesCache.filter(c => {
         const nomeCombina = c.nome.toLowerCase().includes(texto);
@@ -373,11 +467,7 @@ function filtrarClientesHistorico(){
     });
 
     if(filtrados.length === 0){
-        resultados.innerHTML = `
-            <div class="resultado-item">
-                Nenhum cliente encontrado
-            </div>
-        `;
+        resultados.innerHTML = `<div class="resultado-item">Nenhum cliente encontrado</div>`;
         return;
     }
 
@@ -385,8 +475,7 @@ function filtrarClientesHistorico(){
         const nomeCompleto = `${c.posto || ""} ${c.nome}`;
 
         resultados.innerHTML += `
-            <div
-                class="resultado-item"
+            <div class="resultado-item"
                 onclick="selecionarClienteHistorico(${c.id}, '${nomeCompleto.replace(/'/g, "\\'")}')">
                 ${nomeCompleto}
             </div>
@@ -423,7 +512,6 @@ async function carregarHistorico(){
     });
 
     const data = await res.json();
-
     const lista = document.getElementById("historico");
 
     lista.innerHTML = "";
@@ -433,7 +521,6 @@ async function carregarHistorico(){
             <div class="item">
                 <div>
                     <div>${item.qtd}x ${item.produto}</div>
-
                     <div class="admin">
                         ${item.data}
                         ${item.admin ? ` - adicionado por admin (${item.admin})` : ""}
@@ -486,7 +573,6 @@ async function carregarProdutos(){
     const data = await res.json();
 
     const lista = document.getElementById("listaProdutos");
-
     lista.innerHTML = "";
 
     data.forEach(p => {
@@ -503,10 +589,7 @@ async function addProduto(){
     const token = localStorage.getItem("token");
 
     const nome = document.getElementById("nomeProduto").value;
-
-    const preco = parseFloat(
-        document.getElementById("precoProduto").value
-    );
+    const preco = parseFloat(document.getElementById("precoProduto").value);
 
     await fetch(`${API}/admin/produto`, {
         method: "POST",
@@ -543,15 +626,12 @@ function filtrarClientes(){
         .trim();
 
     const postoSelecionado = document.getElementById("filtroPosto").value;
-
     const resultados = document.getElementById("resultadosClientes");
 
     resultados.innerHTML = "";
     clienteSelecionado = null;
 
-    if(texto.length === 0){
-        return;
-    }
+    if(texto.length === 0) return;
 
     const filtrados = clientesCache.filter(c => {
         const nomeCombina = c.nome.toLowerCase().includes(texto);
@@ -562,11 +642,7 @@ function filtrarClientes(){
     });
 
     if(filtrados.length === 0){
-        resultados.innerHTML = `
-            <div class="resultado-item">
-                Nenhum cliente encontrado
-            </div>
-        `;
+        resultados.innerHTML = `<div class="resultado-item">Nenhum cliente encontrado</div>`;
         return;
     }
 
@@ -574,8 +650,7 @@ function filtrarClientes(){
         const nomeCompleto = `${c.posto || ""} ${c.nome}`;
 
         resultados.innerHTML += `
-            <div
-                class="resultado-item"
+            <div class="resultado-item"
                 onclick="selecionarCliente(${c.id}, '${nomeCompleto.replace(/'/g, "\\'")}')">
                 ${nomeCompleto}
             </div>
@@ -595,28 +670,19 @@ async function carregarProdutosCompra(){
     const data = await res.json();
 
     const lista = document.getElementById("listaAdicionarCompra");
-
     lista.innerHTML = "";
 
     data.forEach(p => {
         lista.innerHTML += `
             <div class="grid-row grid-3">
                 <span>
-                    <input
-                        type="checkbox"
-                        class="checkbox-produto"
-                        data-id="${p.id}">
+                    <input type="checkbox" class="checkbox-produto" data-id="${p.id}">
                 </span>
 
                 <span>${p.nome}</span>
 
                 <span>
-                    <input
-                        type="number"
-                        value="1"
-                        min="1"
-                        class="qtd-input"
-                        id="qtd-${p.id}">
+                    <input type="number" value="1" min="1" class="qtd-input" id="qtd-${p.id}">
                 </span>
             </div>
         `;
@@ -625,7 +691,6 @@ async function carregarProdutosCompra(){
 
 async function adicionarCompra(){
     const token = localStorage.getItem("token");
-
     const usuarioId = clienteSelecionado;
 
     if(!usuarioId){
@@ -633,9 +698,7 @@ async function adicionarCompra(){
         return;
     }
 
-    const periodoId = parseInt(
-        document.getElementById("periodoAdicionar").value
-    );
+    const periodoId = parseInt(document.getElementById("periodoAdicionar").value);
 
     if(!periodoId){
         alert("Selecione um mês");
@@ -643,16 +706,12 @@ async function adicionarCompra(){
     }
 
     const checks = document.querySelectorAll(".checkbox-produto");
-
     let compras = [];
 
     checks.forEach(c => {
         if(c.checked){
             const produtoId = parseInt(c.dataset.id);
-
-            const quantidade = parseInt(
-                document.getElementById(`qtd-${produtoId}`).value
-            );
+            const quantidade = parseInt(document.getElementById(`qtd-${produtoId}`).value);
 
             if(quantidade > 0){
                 compras.push({
@@ -688,22 +747,15 @@ async function adicionarCompra(){
     document.getElementById("pesquisaCliente").value = "";
     document.getElementById("resultadosClientes").innerHTML = "";
 
-    document
-        .querySelectorAll(".checkbox-produto")
-        .forEach(c => c.checked = false);
-
-    document
-        .querySelectorAll(".qtd-input")
-        .forEach(q => q.value = 1);
+    document.querySelectorAll(".checkbox-produto").forEach(c => c.checked = false);
+    document.querySelectorAll(".qtd-input").forEach(q => q.value = 1);
 }
 
 async function carregarProdutosRelatorio(){
-
     const res = await fetch(`${API}/produtos`);
     const data = await res.json();
 
     const select = document.getElementById("produtoRelatorio");
-
     select.innerHTML = "";
 
     data.forEach(p => {
@@ -718,15 +770,12 @@ async function carregarProdutosRelatorio(){
 }
 
 async function carregarRelatorioProduto(){
-
     const token = localStorage.getItem("token");
 
     const produtoId = document.getElementById("produtoRelatorio").value;
     const periodoId = document.getElementById("periodoRelatorio").value;
 
-    if(!produtoId || !periodoId){
-        return;
-    }
+    if(!produtoId || !periodoId) return;
 
     const res = await fetch(
         `${API}/admin/relatorio/produto/${produtoId}/${periodoId}`,
@@ -744,11 +793,121 @@ async function carregarRelatorioProduto(){
 
     const data = await res.json();
 
-    document.getElementById("qtdVendidaProduto").innerText =
-        data.quantidade;
+    document.getElementById("qtdVendidaProduto").innerText = data.quantidade;
+    document.getElementById("totalVendidoProduto").innerText = "R$ " + data.total.toFixed(2);
+}
 
-    document.getElementById("totalVendidoProduto").innerText =
-        "R$ " + data.total.toFixed(2);
+async function carregarConfiguracoes(){
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(`${API}/admin/clientes`, {
+        headers: { Authorization: token }
+    });
+
+    clientesCache = await res.json();
+
+    clienteConfigSelecionado = null;
+
+    document.getElementById("pesquisaClienteConfig").value = "";
+    document.getElementById("resultadosClientesConfig").innerHTML = "";
+    document.getElementById("formConfigUsuario").style.display = "none";
+}
+
+function filtrarClientesConfig(){
+    const texto = document.getElementById("pesquisaClienteConfig")
+        .value
+        .toLowerCase()
+        .trim();
+
+    const postoSelecionado = document.getElementById("filtroPostoConfig").value;
+    const resultados = document.getElementById("resultadosClientesConfig");
+
+    resultados.innerHTML = "";
+    clienteConfigSelecionado = null;
+
+    document.getElementById("formConfigUsuario").style.display = "none";
+
+    if(texto.length === 0) return;
+
+    const filtrados = clientesCache.filter(c => {
+        const nomeCombina = c.nome.toLowerCase().includes(texto);
+        const postoCliente = c.posto || "";
+        const postoCombina = postoSelecionado === "" || postoCliente === postoSelecionado;
+
+        return nomeCombina && postoCombina;
+    });
+
+    if(filtrados.length === 0){
+        resultados.innerHTML = `<div class="resultado-item">Nenhum cliente encontrado</div>`;
+        return;
+    }
+
+    filtrados.forEach(c => {
+        const nomeCompleto = `${c.posto || ""} ${c.nome}`;
+
+        resultados.innerHTML += `
+            <div class="resultado-item" onclick="selecionarClienteConfig(${c.id})">
+                ${nomeCompleto}
+            </div>
+        `;
+    });
+}
+
+function selecionarClienteConfig(id){
+    const cliente = clientesCache.find(c => c.id === id);
+
+    if(!cliente){
+        alert("Cliente não encontrado");
+        return;
+    }
+
+    clienteConfigSelecionado = cliente.id;
+
+    document.getElementById("pesquisaClienteConfig").value =
+        `${cliente.posto || ""} ${cliente.nome}`;
+
+    document.getElementById("resultadosClientesConfig").innerHTML = "";
+
+    document.getElementById("configNome").value = cliente.nome;
+    document.getElementById("configPosto").value = cliente.posto || "";
+    document.getElementById("configTelefone").value = cliente.telefone || "";
+
+    document.getElementById("formConfigUsuario").style.display = "block";
+}
+
+async function salvarConfiguracaoUsuario(){
+    if(!clienteConfigSelecionado){
+        alert("Selecione um cliente");
+        return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    const nome = document.getElementById("configNome").value;
+    const posto = document.getElementById("configPosto").value;
+    const telefone = document.getElementById("configTelefone").value;
+
+    const res = await fetch(`${API}/admin/usuario/${clienteConfigSelecionado}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: token
+        },
+        body: JSON.stringify({
+            nome,
+            posto,
+            telefone
+        })
+    });
+
+    if(!res.ok){
+        alert("Erro ao salvar alterações");
+        return;
+    }
+
+    alert("Usuário atualizado com sucesso!");
+
+    await carregarConfiguracoes();
 }
 
 async function iniciar(){

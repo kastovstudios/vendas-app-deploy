@@ -15,7 +15,7 @@ string evolutionInstance =
 string evolutionApiKey =
     Environment.GetEnvironmentVariable("EVOLUTION_API_KEY");
 
-builder.WebHost.UseUrls("http://0.0.0.0:5160");
+builder.WebHost.UseUrls("http://0.0.0.0:8080");
 
 builder.Services.AddCors(options =>
 {
@@ -31,10 +31,53 @@ app.UseCors();
 
 Database.Inicializar();
 
+void GarantirPeriodoAtual()
+{
+    using var conn = Database.GetConnection();
+    conn.Open();
 
+    var existeAberto = conn.CreateCommand();
+    existeAberto.CommandText = @"
+        SELECT COUNT(*)
+        FROM Periodos
+        WHERE Fechado = 0
+    ";
+
+    int abertos = Convert.ToInt32(existeAberto.ExecuteScalar());
+
+    if (abertos > 0)
+        return;
+
+    TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+
+    var agora = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+
+    string nome = agora.ToString(
+        "MMMM/yyyy",
+        new System.Globalization.CultureInfo("pt-BR")
+    );
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        INSERT INTO Periodos
+        (Nome, Mes, Ano, Fechado)
+        VALUES
+        (@nome, @mes, @ano, 0)
+    ";
+
+    cmd.Parameters.AddWithValue("@nome", nome);
+    cmd.Parameters.AddWithValue("@mes", agora.Month);
+    cmd.Parameters.AddWithValue("@ano", agora.Year);
+
+    cmd.ExecuteNonQuery();
+}
+
+GarantirPeriodoAtual();
 // =======================
 //  HELPERS
 // =======================
+
 
 string HashSenha(string senha)
 {
@@ -292,6 +335,30 @@ app.MapPost("/admin/produto", async (HttpRequest request) =>
 //  COMPRAS
 // =======================
 
+app.MapGet("/setup/admin/{telefone}", (string telefone) =>
+{
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        UPDATE Usuarios
+        SET IsAdmin = 1
+        WHERE Telefone = @t
+    ";
+
+    cmd.Parameters.AddWithValue("@t", telefone);
+
+    int linhas = cmd.ExecuteNonQuery();
+
+    return Results.Ok(new
+    {
+        atualizado = linhas
+    });
+});
+
+
 app.MapPost("/comprar", async (HttpRequest request) =>
 {
     var userId = GetUserId(request);
@@ -311,8 +378,12 @@ app.MapPost("/comprar", async (HttpRequest request) =>
     int periodoId = GetPeriodoAbertoId(conn);
 
     // DATA DA COMPRA
+    TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+
+    DateTime horarioBrasil = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+
     string dataHora =
-        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        horarioBrasil.ToString("yyyy-MM-dd HH:mm:ss");
 
     double totalGeral = 0;
 
@@ -592,7 +663,7 @@ app.MapGet("/admin/clientes", (HttpRequest request) =>
     conn.Open();
 
     var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT Id, Nome, Posto FROM Usuarios";
+    cmd.CommandText = "SELECT Id, Nome, Posto, Telefone FROM Usuarios";
 
     var reader = cmd.ExecuteReader();
     var lista = new List<object>();
@@ -603,7 +674,8 @@ app.MapGet("/admin/clientes", (HttpRequest request) =>
         {
             id = reader.GetInt32(0),
             nome = reader.GetString(1),
-            posto = reader.IsDBNull(2) ? "" : reader.GetString(2)
+            posto = reader.IsDBNull(2) ? "" : reader.GetString(2),
+            telefone = reader.IsDBNull(3) ? "" : reader.GetString(3)
         });
     }
 
@@ -790,10 +862,12 @@ app.MapPost("/admin/cobrar-clientes/{periodoId}", async (int periodoId, HttpRequ
     {
         string mensagem =
             $"Bom dia {cliente.Posto} {cliente.Nome}!\n" +
-            $"Segue o valor em aberto referente ao mês selecionado.\n" +
+            $"Segue o valor do que consumiu na CCAP durante o mês anterior\n" +
             $"Valor: R$ {cliente.Total:F2}.\n\n" +
             $"Pix: matheusmatft@gmail.com\n\n" +
-            $"FAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO.";
+            $"*Banco NEON*\n\n"+
+            $"FAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO\n"+
+            $"Obs: Caso tenha alguma dúvida sobre valores ou algum item, só mencionar que verificamos assinatura.";
 
         bool enviado = await EnviarWhatsApp(cliente.Telefone, mensagem);
 
@@ -804,6 +878,103 @@ app.MapPost("/admin/cobrar-clientes/{periodoId}", async (int periodoId, HttpRequ
     }
 
     return Results.Ok($"Cobranças enviadas: {enviados}");
+});
+
+app.MapGet("/admin/clientes-devendo/{periodoId}", (int periodoId, HttpRequest request) =>
+{
+    if (!IsAdmin(request))
+        return Results.Unauthorized();
+
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        SELECT 
+            u.Id,
+            u.Nome,
+            u.Posto,
+            u.Telefone,
+            SUM(c.Quantidade * p.Preco) AS Total
+        FROM Consumo c
+        JOIN Usuarios u ON c.UsuarioId = u.Id
+        JOIN Produtos p ON c.ProdutoId = p.Id
+        WHERE c.PeriodoId = @periodo
+        GROUP BY u.Id, u.Nome, u.Posto, u.Telefone
+        HAVING Total > 0";
+
+    cmd.Parameters.AddWithValue("@periodo", periodoId);
+
+    var reader = cmd.ExecuteReader();
+    var lista = new List<object>();
+
+    while(reader.Read())
+    {
+        lista.Add(new
+        {
+            id = reader.GetInt32(0),
+            nome = reader.GetString(1),
+            posto = reader.IsDBNull(2) ? "" : reader.GetString(2),
+            telefone = reader.GetString(3),
+            total = reader.GetDouble(4)
+        });
+    }
+
+    return Results.Ok(lista);
+});
+
+app.MapPost("/admin/cobrar-cliente", async (CobrarClienteDTO dto, HttpRequest request) =>
+{
+    if (!IsAdmin(request))
+        return Results.Unauthorized();
+
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        SELECT 
+            u.Nome,
+            u.Posto,
+            u.Telefone,
+            SUM(c.Quantidade * p.Preco) AS Total
+        FROM Consumo c
+        JOIN Usuarios u ON c.UsuarioId = u.Id
+        JOIN Produtos p ON c.ProdutoId = p.Id
+        WHERE c.UsuarioId = @usuario
+        AND c.PeriodoId = @periodo
+        GROUP BY u.Nome, u.Posto, u.Telefone";
+
+    cmd.Parameters.AddWithValue("@usuario", dto.UsuarioId);
+    cmd.Parameters.AddWithValue("@periodo", dto.PeriodoId);
+
+    var reader = cmd.ExecuteReader();
+
+    if(!reader.Read())
+        return Results.NotFound();
+
+    string nome = reader.GetString(0);
+    string posto = reader.IsDBNull(1) ? "" : reader.GetString(1);
+    string telefone = "55" + reader.GetString(2);
+    double total = reader.GetDouble(3);
+
+    string mensagem =
+        $"Bom dia {posto} {nome}!\n" +
+        $"Segue o valor do que consumiu na CCAP durante o mês anterior\n" +
+        $"Valor: R$ {total:F2}.\n\n" +
+        $"Pix: matheusmatft@gmail.com\n\n" +
+        $"*Banco NEON*\n\n" +
+        $"FAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO\n" +
+        $"Obs: Caso tenha alguma dúvida sobre valores ou algum item, só mencionar que verificamos.";
+
+    bool enviado = await EnviarWhatsApp(telefone, mensagem);
+
+    if(!enviado)
+        return Results.BadRequest("Erro ao enviar mensagem.");
+
+    return Results.Ok();
 });
 
 app.MapGet("/admin/periodos", (HttpRequest request) =>
@@ -886,6 +1057,8 @@ app.MapPost("/admin/fechar-mes", (HttpRequest request) =>
         ano++;
     }
 
+
+
     string nome = new DateTime(ano, mes, 1)
         .ToString("MMMM/yyyy", new System.Globalization.CultureInfo("pt-BR"));
 
@@ -948,6 +1121,48 @@ app.MapGet("/admin/relatorio/produto/{produtoId}/{periodoId}",
     });
 });
 
+app.MapPut("/admin/usuario/{id}", async (int id, HttpRequest request) =>
+{
+    if (!IsAdmin(request))
+        return Results.Unauthorized();
+
+    var dto = await request.ReadFromJsonAsync<AtualizarUsuarioDTO>();
+
+    if (dto == null)
+        return Results.BadRequest("Dados inválidos.");
+
+    string telefone = new string(
+        dto.Telefone
+            .Where(char.IsDigit)
+            .ToArray()
+    );
+
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        UPDATE Usuarios
+        SET
+            Nome = @nome,
+            Posto = @posto,
+            Telefone = @telefone
+        WHERE Id = @id";
+
+    cmd.Parameters.AddWithValue("@nome", dto.Nome);
+    cmd.Parameters.AddWithValue("@posto", dto.Posto);
+    cmd.Parameters.AddWithValue("@telefone", telefone);
+    cmd.Parameters.AddWithValue("@id", id);
+
+    int linhas = cmd.ExecuteNonQuery();
+
+    if(linhas == 0)
+        return Results.NotFound("Usuário não encontrado.");
+
+    return Results.Ok("Usuário atualizado.");
+});
+
 //Adicionar compra ADMIN
 
 app.MapPost("/admin/adicionar", async (HttpRequest request) =>
@@ -984,11 +1199,15 @@ app.MapPost("/admin/adicionar", async (HttpRequest request) =>
         VALUES
         (@u, @p, @q, @d, @a, @periodo)";
 
+    TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+
+    DateTime horarioBrasil = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+
     cmd.Parameters.AddWithValue("@u", dto.UsuarioId);
     cmd.Parameters.AddWithValue("@p", dto.ProdutoId);
     cmd.Parameters.AddWithValue("@q", dto.Quantidade);
     cmd.Parameters.AddWithValue("@d",
-        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        horarioBrasil.ToString("yyyy-MM-dd HH:mm:ss"));
 
     cmd.Parameters.AddWithValue("@a", adminId);
     cmd.Parameters.AddWithValue("@periodo", dto.PeriodoId);
@@ -1031,3 +1250,6 @@ async Task<bool> EnviarWhatsApp(string numero, string mensagem)
 }
 
 app.Run();
+
+record CobrarClienteDTO(int UsuarioId, int PeriodoId);
+record AtualizarUsuarioDTO(string Nome,string Posto,string Telefone);
