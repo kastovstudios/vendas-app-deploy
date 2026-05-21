@@ -129,18 +129,38 @@ body {
 }
 
 /* BOTÃO FINAL */
-.btn-finalizar {
-    margin-top: 20px;
-    width: 100%;
-    padding: 15px;
-    background: #2196F3;
-    border: none;
-    color: white;
-    font-size: 18px;
-    border-radius: 8px;
-    cursor: pointer;
-}
+.btn-finalizar{
 
+    position:fixed;
+
+    bottom:15px;
+
+    left:50%;
+
+    transform:translateX(-50%);
+
+    width:90%;
+
+    max-width:500px;
+
+    z-index:999;
+
+    padding:15px;
+
+    background:#2196F3;
+
+    border:none;
+
+    color:white;
+
+    font-size:18px;
+
+    border-radius:12px;
+
+    cursor:pointer;
+
+    box-shadow:0 0 10px rgba(0,0,0,0.3);
+}
 .gridProdutos {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
