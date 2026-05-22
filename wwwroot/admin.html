@@ -219,6 +219,9 @@
                 <button onclick="salvarConfiguracaoUsuario()">
                     Salvar Alterações
                 </button>
+                <button onclick="excluirUsuarioSelecionado()" style="background:#b91c1c;">
+                    Excluir Usuário
+                </button>
 
             </div>
 
@@ -906,6 +909,41 @@ async function salvarConfiguracaoUsuario(){
     }
 
     alert("Usuário atualizado com sucesso!");
+
+    await carregarConfiguracoes();
+}
+
+async function excluirUsuarioSelecionado(){
+
+    if(!clienteConfigSelecionado){
+        alert("Selecione um cliente");
+        return;
+    }
+
+    const confirmar = confirm(
+        "Tem certeza que deseja excluir este usuário?\n\n" +
+        "Essa ação também pode remover o histórico dele e não poderá ser desfeita."
+    );
+
+    if(!confirmar){
+        return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(`${API}/admin/usuario/${clienteConfigSelecionado}`, {
+        method: "DELETE",
+        headers: {
+            Authorization: token
+        }
+    });
+
+    if(!res.ok){
+        alert("Erro ao excluir usuário");
+        return;
+    }
+
+    alert("Usuário excluído com sucesso!");
 
     await carregarConfiguracoes();
 }

@@ -1163,6 +1163,38 @@ app.MapPut("/admin/usuario/{id}", async (int id, HttpRequest request) =>
     return Results.Ok("Usuário atualizado.");
 });
 
+app.MapDelete("/admin/usuario/{id}", (int id, HttpRequest request) =>
+{
+    if (!IsAdmin(request))
+        return Results.Unauthorized();
+
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    // Remove consumos do usuário
+    var consumoCmd = conn.CreateCommand();
+    consumoCmd.CommandText = "DELETE FROM Consumo WHERE UsuarioId = @id";
+    consumoCmd.Parameters.AddWithValue("@id", id);
+    consumoCmd.ExecuteNonQuery();
+
+    // Remove compras do usuário
+    var comprasCmd = conn.CreateCommand();
+    comprasCmd.CommandText = "DELETE FROM Compras WHERE UsuarioId = @id";
+    comprasCmd.Parameters.AddWithValue("@id", id);
+    comprasCmd.ExecuteNonQuery();
+
+    // Remove usuário
+    var usuarioCmd = conn.CreateCommand();
+    usuarioCmd.CommandText = "DELETE FROM Usuarios WHERE Id = @id";
+    usuarioCmd.Parameters.AddWithValue("@id", id);
+
+    int linhas = usuarioCmd.ExecuteNonQuery();
+
+    if(linhas == 0)
+        return Results.NotFound("Usuário não encontrado.");
+
+    return Results.Ok("Usuário excluído.");
+});
 //Adicionar compra ADMIN
 
 app.MapPost("/admin/adicionar", async (HttpRequest request) =>
