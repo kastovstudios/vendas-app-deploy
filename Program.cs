@@ -137,12 +137,26 @@ int GetPeriodoAbertoId(SqliteConnection conn)
 
     return Convert.ToInt32(result);
 }
+
 // =======================
 //  AUTH
 // =======================
 
 app.MapPost("/register", (RegisterDTO dto) =>
 {
+
+    if(string.IsNullOrWhiteSpace(dto.Nome))
+        return Results.BadRequest("Nome obrigatório.");
+
+    if(string.IsNullOrWhiteSpace(dto.Telefone))
+        return Results.BadRequest("Telefone obrigatório.");
+
+    if(string.IsNullOrWhiteSpace(dto.Senha))
+        return Results.BadRequest("Senha obrigatória.");
+
+    if(string.IsNullOrWhiteSpace(dto.Posto))
+        return Results.BadRequest("Posto obrigatório.");
+
     using var conn = Database.GetConnection();
     conn.Open();
 
@@ -357,7 +371,6 @@ app.MapGet("/setup/admin/{telefone}", (string telefone) =>
         atualizado = linhas
     });
 });
-
 
 app.MapPost("/comprar", async (HttpRequest request) =>
 {
@@ -1195,7 +1208,6 @@ app.MapDelete("/admin/usuario/{id}", (int id, HttpRequest request) =>
 
     return Results.Ok("Usuário excluído.");
 });
-//Adicionar compra ADMIN
 
 app.MapPost("/admin/adicionar", async (HttpRequest request) =>
 {
