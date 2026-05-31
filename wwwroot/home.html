@@ -13,6 +13,7 @@
     <button onclick="trocar('produtos')">Produtos</button>
     <button onclick="trocar('historico')">Historico</button>
     <button onclick="logout()">Sair</button>
+    <button id="btnAdmin" onclick="window.location.href='admin.html'" style="display:none;"> Admin</button>
 </div>
 
 <script>
@@ -48,6 +49,10 @@ async function init() {
 
     const data = await res.json();
     document.getElementById("user").innerText = "Olá, "+data.posto+" "  +data.nome;
+
+    if(data.admin){
+    document.getElementById("btnAdmin").style.display = "block";
+}
 }
 
 function logout() {
