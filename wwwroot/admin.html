@@ -74,6 +74,13 @@
 
             <button onclick="carregarHistorico()">Pesquisar Histórico</button>
 
+            <button
+                id="btnCobrarCliente"
+                onclick="cobrarClienteSelecionado()"
+                style="display:none;">
+                Cobrar Cliente
+            </button>
+
             <div id="historico" class="list"></div>
 
             <button onclick="zerar()">Zerar Dívida</button>
@@ -493,7 +500,13 @@ function selecionarClienteHistorico(id, nome){
     clienteHistoricoSelecionado = id;
 
     document.getElementById("pesquisaClienteHistorico").value = nome;
+
     document.getElementById("resultadosClientesHistorico").innerHTML = "";
+
+    document.getElementById("btnCobrarCliente").style.display = "inline-block";
+
+    document.getElementById("btnCobrarCliente").innerText =
+        `Cobrar ${nome}`;
 }
 
 async function carregarHistorico(){
@@ -955,6 +968,61 @@ async function iniciar(){
     await verificarAdmin();
     await carregarPeriodos();
     await carregarDashboard();
+}
+
+async function cobrarClienteSelecionado(){
+
+    if(!clienteHistoricoSelecionado){
+
+        alert("Selecione um cliente");
+
+        return;
+    }
+
+    const periodoId =
+        document.getElementById("periodoHistoricoAdmin").value;
+
+    if(!periodoId){
+
+        alert("Selecione um mês");
+
+        return;
+    }
+
+    if(!confirm("Enviar cobrança para este cliente?")){
+        return;
+    }
+
+    const token =
+        localStorage.getItem("token");
+
+    const res = await fetch(
+        `${API}/admin/cobrar-cliente`,
+        {
+            method:"POST",
+
+            headers:{
+                "Content-Type":"application/json",
+                Authorization: token
+            },
+
+            body: JSON.stringify({
+                usuarioId: clienteHistoricoSelecionado,
+                periodoId: parseInt(periodoId)
+            })
+        }
+    );
+
+    if(!res.ok){
+
+        const erro = await res.text();
+
+        alert("Erro: " + erro);
+
+        return;
+    }
+
+    alert("Cobrança enviada com sucesso!");
 }
 
 iniciar();
