@@ -914,6 +914,7 @@ app.MapGet("/admin/clientes-devendo/{periodoId}", (int periodoId, HttpRequest re
         JOIN Usuarios u ON c.UsuarioId = u.Id
         JOIN Produtos p ON c.ProdutoId = p.Id
         WHERE c.PeriodoId = @periodo
+        AND u.Id > 90
         GROUP BY u.Id, u.Nome, u.Posto, u.Telefone
         HAVING Total > 0";
 
