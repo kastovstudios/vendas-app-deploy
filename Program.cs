@@ -711,7 +711,8 @@ app.MapGet("/admin/historico/{id}/{periodoId}", (int id, int periodoId, HttpRequ
             p.Nome,
             c.Quantidade,
             c.DataHora,
-            a.Nome
+            a.Nome,
+            p.Preco
         FROM Consumo c
         JOIN Produtos p ON c.ProdutoId = p.Id
         LEFT JOIN Usuarios a ON c.AdminId = a.Id
@@ -725,20 +726,35 @@ app.MapGet("/admin/historico/{id}/{periodoId}", (int id, int periodoId, HttpRequ
     var reader = cmd.ExecuteReader();
 
     var lista = new List<object>();
+    double total = 0;
 
     while (reader.Read())
     {
+        int qtd = reader.GetInt32(2);
+        double preco = reader.GetDouble(5);
+        double itemTotal = qtd * preco;
+
+        total += itemTotal;
+
         lista.Add(new
         {
             id = reader.GetInt32(0),
             produto = reader.GetString(1),
-            qtd = reader.GetInt32(2),
+            qtd = qtd,
             data = reader.GetString(3),
-            admin = reader.IsDBNull(4) ? null : reader.GetString(4)
+            total = itemTotal,
+
+            admin = reader.IsDBNull(4)
+                ? null
+                : reader.GetString(4)
         });
     }
 
-    return Results.Ok(lista);
+    return Results.Ok(new
+    {
+        itens = lista,
+        total
+    });
 });
 
 app.MapDelete("/admin/remover/{id}", (int id, HttpRequest request) =>
