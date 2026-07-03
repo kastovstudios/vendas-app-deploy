@@ -537,21 +537,28 @@ async function carregarHistorico(){
 
     lista.innerHTML = "";
 
-    data.forEach(item => {
+    data.itens.forEach(item => {
         lista.innerHTML += `
             <div class="item">
                 <div>
-                    <div>${item.qtd}x ${item.produto}</div>
+                    <div>
+                        ${item.qtd}x ${item.produto} - R$ ${item.total.toFixed(2)}
+                    </div>
+        
                     <div class="admin">
                         ${item.data}
                         ${item.admin ? ` - adicionado por admin (${item.admin})` : ""}
                     </div>
                 </div>
-
+        
                 <button onclick="remover(${item.id})">X</button>
             </div>
         `;
+        
+    
     });
+    document.getElementById("totalClienteAdmin").innerText =
+    "TOTAL: R$ " + data.total.toFixed(2);
 }
 
 async function remover(id){
