@@ -41,6 +41,7 @@
 
             <button onclick="fecharMes()">Fechar Mês</button>
             <button onclick="cobrarClientes()">Cobrar Clientes</button>
+            <button onclick="baixarMensagensCobranca()">Baixar Mensagens TXT</button>
         </div>
 
         <div id="clientes" style="display:none;">
@@ -1034,6 +1035,59 @@ async function cobrarClienteSelecionado(){
     alert("Cobrança enviada com sucesso!");
 }
 
+//provisorio
+    async function baixarMensagensCobranca(){
+
+    const token = localStorage.getItem("token");
+
+    const periodoId =
+        document.getElementById("periodoDashboard").value;
+
+    if(!periodoId){
+        alert("Selecione um mês");
+        return;
+    }
+
+    const res = await fetch(
+        `${API}/admin/mensagens-cobranca/${periodoId}`,
+        {
+            headers:{
+                Authorization: token
+            }
+        }
+    );
+
+    if(!res.ok){
+        const erro = await res.text();
+        alert("Erro ao gerar arquivo: " + erro);
+        return;
+    }
+
+    const arquivo = await res.blob();
+
+    const url = URL.createObjectURL(arquivo);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+
+    const nomeArquivo =
+        res.headers
+            .get("Content-Disposition")
+            ?.match(/filename="?([^"]+)"?/)?.[1]
+        || "mensagens-cobranca.txt";
+
+    link.download = nomeArquivo;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    URL.revokeObjectURL(url);
+}
+    
 iniciar();
 </script>
 
