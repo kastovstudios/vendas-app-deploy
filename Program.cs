@@ -667,6 +667,154 @@ app.MapGet("/periodos", (HttpRequest request) =>
 // =======================
 //  ADMIN
 // =======================
+//provisiorio===========
+app.MapGet("/admin/mensagens-cobranca/{periodoId}",
+(int periodoId, HttpRequest request) =>
+{
+    if (!IsAdmin(request))
+        return Results.Unauthorized();
+
+    using var conn = Database.GetConnection();
+    conn.Open();
+
+    // Busca o nome do período
+    var periodoCmd = conn.CreateCommand();
+
+    periodoCmd.CommandText = @"
+        SELECT Nome
+        FROM Periodos
+        WHERE Id = @id";
+
+    periodoCmd.Parameters.AddWithValue("@id", periodoId);
+
+    var periodoObj = periodoCmd.ExecuteScalar();
+
+    if (periodoObj == null)
+        return Results.NotFound("Mês não encontrado.");
+
+    string nomePeriodo = periodoObj.ToString() ?? "periodo";
+
+    // Busca todos os clientes com dívida no mês
+    var cmd = conn.CreateCommand();
+
+    cmd.CommandText = @"
+        SELECT
+            u.Id,
+            u.Nome,
+            u.Posto,
+            u.Telefone,
+            SUM(c.Quantidade * p.Preco) AS Total
+        FROM Consumo c
+        JOIN Usuarios u
+            ON c.UsuarioId = u.Id
+        JOIN Produtos p
+            ON c.ProdutoId = p.Id
+        WHERE c.PeriodoId = @periodo
+        GROUP BY
+            u.Id,
+            u.Nome,
+            u.Posto,
+            u.Telefone
+        HAVING SUM(c.Quantidade * p.Preco) > 0
+        ORDER BY u.Posto, u.Nome";
+
+    cmd.Parameters.AddWithValue("@periodo", periodoId);
+
+    var reader = cmd.ExecuteReader();
+
+    var texto = new StringBuilder();
+
+    texto.AppendLine("========================================");
+    texto.AppendLine("MENSAGENS DE COBRANÇA");
+    texto.AppendLine($"PERÍODO: {nomePeriodo}");
+    texto.AppendLine("========================================");
+    texto.AppendLine();
+
+    int quantidadeClientes = 0;
+    double valorTotal = 0;
+
+    while (reader.Read())
+    {
+        int usuarioId = reader.GetInt32(0);
+
+        string nome =
+            reader.IsDBNull(1)
+                ? ""
+                : reader.GetString(1);
+
+        string posto =
+            reader.IsDBNull(2)
+                ? ""
+                : reader.GetString(2);
+
+        string telefone =
+            reader.IsDBNull(3)
+                ? ""
+                : reader.GetString(3);
+
+        double total = reader.GetDouble(4);
+
+        quantidadeClientes++;
+        valorTotal += total;
+
+        string nomeCompleto =
+            $"{posto} {nome}".Trim();
+
+        string mensagem =
+            $"Bom dia {nomeCompleto}!\n" +
+            $"Segue o valor do que consumiu na CCAP durante o mês de {nomePeriodo}.\n" +
+            $"Valor: R$ {total:F2}.\n\n" +
+            $"Pix: matheusmatft@gmail.com\n\n" +
+            $"*Banco NEON*\n\n" +
+            $"FAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO\n" +
+            $"Obs: Caso tenha alguma dúvida sobre valores ou algum item, " +
+            $"só mencionar que verificamos.";
+
+        texto.AppendLine("----------------------------------------");
+        texto.AppendLine($"CLIENTE #{quantidadeClientes}");
+        texto.AppendLine($"ID: {usuarioId}");
+        texto.AppendLine($"CLIENTE: {nomeCompleto}");
+        texto.AppendLine($"TELEFONE: {telefone}");
+        texto.AppendLine($"VALOR: R$ {total:F2}");
+        texto.AppendLine("----------------------------------------");
+        texto.AppendLine();
+        texto.AppendLine(mensagem);
+        texto.AppendLine();
+        texto.AppendLine();
+    }
+
+    reader.Close();
+
+    texto.AppendLine("========================================");
+    texto.AppendLine("RESUMO");
+    texto.AppendLine($"CLIENTES COM DÍVIDA: {quantidadeClientes}");
+    texto.AppendLine($"VALOR TOTAL: R$ {valorTotal:F2}");
+    texto.AppendLine("========================================");
+
+    if (quantidadeClientes == 0)
+        return Results.NotFound(
+            "Nenhum cliente com dívida no mês selecionado."
+        );
+
+    string nomeSeguro = nomePeriodo
+        .Replace("/", "-")
+        .Replace("\\", "-")
+        .Replace(" ", "-");
+
+    string nomeArquivo =
+        $"mensagens-cobranca-{nomeSeguro}.txt";
+
+    byte[] arquivo =
+        Encoding.UTF8.GetPreamble()
+        .Concat(Encoding.UTF8.GetBytes(texto.ToString()))
+        .ToArray();
+
+    return Results.File(
+        arquivo,
+        contentType: "text/plain; charset=utf-8",
+        fileDownloadName: nomeArquivo
+    );
+});
 
 app.MapGet("/admin/clientes", (HttpRequest request) =>
 {
