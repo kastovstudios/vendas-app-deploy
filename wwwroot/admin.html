@@ -20,6 +20,7 @@
         <button onclick="mostrar('adicionar')">Adicionar Compra</button>
         <button onclick="mostrar('relatorios')">Relatórios</button>
         <button onclick="mostrar('configuracoes')">Configurações</button>
+        <button onclick="home()">Home</button>
     </div>
 
     <div class="content">
@@ -259,6 +260,10 @@ let clienteHistoricoSelecionado = null;
 let clienteConfigSelecionado = null;
 let userId = null;
 
+async function home(){
+    window.location.replace("home.html");
+}
+    
 async function verificarAdmin(){
     const token = localStorage.getItem("token");
 
