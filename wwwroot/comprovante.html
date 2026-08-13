@@ -103,8 +103,8 @@ button{
 
     <div class="topbar">
         <button onclick="home()">Home</button>
-        <button onclick="home()">Produtos</button>
-        <button onclick="home()">Histórico</button>
+        <button onclick="produtos()">Produtos</button>
+        <button onclick="historico()">Histórico</button>
     </div>
     
     <div class="card">
@@ -133,6 +133,16 @@ button{
 <script>
 const API = window.location.origin;
 
+async function home(){
+    window.location.href = "home.html";
+}
+async function produtos(){
+    window.location.href = "produtos.html"  
+}
+async function historico(){
+    window.location.href = "historico.html"
+}
+    
 async function carregar(){
 
     const token = localStorage.getItem("token");
