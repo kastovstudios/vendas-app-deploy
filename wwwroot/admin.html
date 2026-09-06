@@ -71,8 +71,14 @@
 
             <div class="grid-container grid-clientes-container">
                 <div class="grid-header">
-                    <span>Cliente</span>
-                    <span>Dívida</span>
+                    <span class="grid-sort-header">
+                        Cliente
+                        <button type="button" class="grid-sort-btn" id="sortClienteBtn" onclick="ordenarGridClientes('cliente', event)" title="Ordenar por cliente">↕</button>
+                    </span>
+                    <span class="grid-sort-header grid-sort-header-right">
+                        Dívida
+                        <button type="button" class="grid-sort-btn" id="sortDividaBtn" onclick="ordenarGridClientes('divida', event)" title="Ordenar por dívida">↕</button>
+                    </span>
                 </div>
 
                 <div id="listaClientesDividas" class="grid-body grid-clientes-body"></div>
@@ -253,7 +259,7 @@
                 <button onclick="salvarConfiguracaoUsuario()">
                     Salvar Alterações
                 </button>
-                <button onclick="resetarSenhaUsuarioSelecionado()" style="background:#b7791f;">
+                <button onclick="resetarSenhaUsuarioSelecionado()" style="background:#d98b17;">
                     Resetar Senha
                 </button>
                 <button onclick="excluirUsuarioSelecionado()" style="background:#b91c1c;">
@@ -279,6 +285,7 @@ const API = window.location.origin;
 
 let clientesCache = [];
 let clienteSelecionado = null;
+let ordenacaoGridClientes = { campo: null, direcao: 'asc' };
 let clienteHistoricoSelecionado = null;
 let clienteConfigSelecionado = null;
 let userId = null;
@@ -525,6 +532,23 @@ async function carregarGridClientes(){
         return postoSelecionado === "" || postoCliente === postoSelecionado;
     });
 
+    if(ordenacaoGridClientes.campo){
+        clientesFiltrados.sort((a, b) => {
+            let comparacao = 0;
+
+            if(ordenacaoGridClientes.campo === 'cliente'){
+                const nomeA = `${a.posto || ""} ${a.nome || ""}`.trim();
+                const nomeB = `${b.posto || ""} ${b.nome || ""}`.trim();
+                comparacao = nomeA.localeCompare(nomeB, 'pt-BR', { sensitivity: 'base' });
+            }else if(ordenacaoGridClientes.campo === 'divida'){
+                comparacao = Number(a.total || 0) - Number(b.total || 0);
+            }
+
+            return ordenacaoGridClientes.direcao === 'asc' ? comparacao : -comparacao;
+        });
+    }
+
+    atualizarIconesOrdenacaoGrid();
     lista.innerHTML = "";
 
     if(clientesFiltrados.length === 0){
@@ -544,6 +568,36 @@ async function carregarGridClientes(){
             </div>
         `;
     });
+}
+
+
+function ordenarGridClientes(campo, event){
+    if(event) event.stopPropagation();
+
+    if(ordenacaoGridClientes.campo === campo){
+        ordenacaoGridClientes.direcao = ordenacaoGridClientes.direcao === 'asc' ? 'desc' : 'asc';
+    }else{
+        ordenacaoGridClientes.campo = campo;
+        ordenacaoGridClientes.direcao = 'asc';
+    }
+
+    carregarGridClientes();
+}
+
+function atualizarIconesOrdenacaoGrid(){
+    const btnCliente = document.getElementById('sortClienteBtn');
+    const btnDivida = document.getElementById('sortDividaBtn');
+
+    if(btnCliente) btnCliente.textContent = '↕';
+    if(btnDivida) btnDivida.textContent = '↕';
+
+    if(ordenacaoGridClientes.campo === 'cliente' && btnCliente){
+        btnCliente.textContent = ordenacaoGridClientes.direcao === 'asc' ? '▲' : '▼';
+    }
+
+    if(ordenacaoGridClientes.campo === 'divida' && btnDivida){
+        btnDivida.textContent = ordenacaoGridClientes.direcao === 'asc' ? '▲' : '▼';
+    }
 }
 
 function selecionarClienteDaGrid(id, nome){

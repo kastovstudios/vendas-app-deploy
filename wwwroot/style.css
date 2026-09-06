@@ -1,6 +1,6 @@
 body {
     font-family: Arial;
-    background: #202020;
+    background: #151411;
     color: white;
     display: flex;
     justify-content: center;
@@ -9,7 +9,7 @@ body {
 }
 
 .container {
-    background: #303030;
+    background: #23211d;
     padding: 30px;
     border-radius: 10px;
     width: 400px;
@@ -20,7 +20,7 @@ body {
 }
 
 #lista div {
-    background: #3a3a3a;
+    background: #302d27;
     padding: 8px;
     border-radius: 5px;
     margin-bottom: 5px;
@@ -44,14 +44,14 @@ input {
 button {
     width: 100%;
     padding: 10px;
-    background: #4CAF50;
+    background: #f2a72b;
     border: none;
     color: white;
     cursor: pointer;
 }
 
 a {
-    color: #4CAF50;
+    color: #f2a72b;
     text-decoration: none;
 }
 
@@ -68,7 +68,7 @@ a {
 /**/
 
 body {
-    background: #202020;
+    background: #151411;
     font-family: Arial;
     color: white;
     margin: 0;
@@ -93,7 +93,7 @@ body {
 
 /* CARD */
 .card {
-    background: #303030;
+    background: #23211d;
     padding: 15px;
     border-radius: 10px;
     text-align: center;
@@ -109,7 +109,7 @@ body {
 }
 
 .controle button {
-    background: #4CAF50;
+    background: #f2a72b;
     border: none;
     padding: 8px 12px;
     color: white;
@@ -134,7 +134,7 @@ body {
     max-width:500px;
     z-index:999;
     padding:15px;
-    background:#5a5a5a;
+    background:#f2a72b;
     border:none;
     color:white;
     font-size:18px;
@@ -151,10 +151,10 @@ body {
 }
 
 .card {
-    border: 1px solid #444;
+    border: 1px solid #4a443a;
     padding: 15px;
     text-align: center;
-    background-color: #323232;
+    background-color: #24221e;
 }
 
 .nomeProduto {
@@ -163,7 +163,7 @@ body {
 }
 
 .precoProduto {
-    color: #bbb;
+    color: #c9c2b7;
     margin-bottom: 10px;
 }
 
@@ -176,11 +176,11 @@ body {
 }
 
 .historico-item {
-    background: #303030;
+    background: #23211d;
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 8px;
-    border: 1px solid #444;
+    border: 1px solid #4a443a;
 }
 
 /* LINHAS */
@@ -194,7 +194,7 @@ body {
     display: flex;
     justify-content: space-between;
     font-size: 13px;
-    color: #aaa;
+    color: #b8b0a2;
     margin-top: 5px;
 }
 
@@ -204,7 +204,7 @@ body {
 }
 
 .total {
-    color: #4CAF50;
+    color: #f2a72b;
 }
 
 .historico-total {
@@ -229,7 +229,7 @@ body {
 
 .admin-info {
     font-size: 11px;
-    color: #888;
+    color: #8f887d;
     font-style: italic;
 }
 
@@ -263,7 +263,7 @@ body {
 
     box-sizing:border-box;
 
-    background:#202020;
+    background:#1b1916;
 }
 
 .sidebar button{
@@ -346,7 +346,7 @@ body {
     }
 
     .sidebar::-webkit-scrollbar-thumb{
-        background:#555555;
+        background:#3a352e;
     }
 }
 
@@ -357,7 +357,7 @@ body > * {
 }
 
 /* Marca d'água visível dentro dos painéis das páginas do usuário.
-   Os painéis usam fundo sólido (#303030), por isso a marca aplicada apenas
+   Os painéis usam fundo sólido (#23211d), por isso a marca aplicada apenas
    no body ficava escondida atrás deles. */
 .container {
     position: relative;
@@ -392,3 +392,44 @@ body > * {
         opacity: 0.07;
     }
 }
+
+
+/* ===== Paleta inspirada no cardápio Grêmio dos Cabos ===== */
+:root {
+    --menu-bg: #151411;
+    --menu-panel: #23211d;
+    --menu-panel-2: #302d27;
+    --menu-accent: #f2a72b;
+    --menu-text: #f7f4ee;
+    --menu-muted: #b8b0a2;
+    --menu-border: #4a443a;
+}
+
+body {
+    background-color: var(--menu-bg);
+    background-image:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px),
+        radial-gradient(circle at 18% 20%, rgba(242,167,43,.035), transparent 26%),
+        radial-gradient(circle at 82% 72%, rgba(242,167,43,.025), transparent 28%);
+    background-size: 3px 3px, 5px 5px, auto, auto;
+    color: var(--menu-text);
+}
+
+button, .controle button, .btn-finalizar {
+    background: var(--menu-accent);
+    color: #181510;
+    font-weight: 700;
+}
+
+button:hover, .controle button:hover, .btn-finalizar:hover {
+    filter: brightness(1.08);
+}
+
+a, .total { color: var(--menu-accent); }
+
+.card, .historico-item, #lista div, .container {
+    border-color: var(--menu-border);
+}
+
+.precoProduto, .linha2, .admin-info { color: var(--menu-muted); }
