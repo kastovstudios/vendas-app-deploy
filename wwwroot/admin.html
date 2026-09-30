@@ -558,15 +558,45 @@ async function carregarGridClientes(){
 
     clientesFiltrados.forEach(c => {
         const nomeCompleto = `${c.posto || ""} ${c.nome}`.trim();
-        const nomeSeguro = nomeCompleto.replace(/'/g, "\\'");
+        const cliente = clientesCache.find(cliente => cliente.id === c.id);
+        let telefone = String(cliente?.telefone || "").replace(/\D/g, "");
+        if(telefone.length === 10 || telefone.length === 11) telefone = "55" + telefone;
+        const telefoneValido = /^55\d{10,11}$/.test(telefone);
+        const valor = Number(c.total).toFixed(2).replace('.', ',');
+        const periodo = document.getElementById("periodoHistoricoAdmin").selectedOptions[0].textContent;
+        const mensagem = `Bom dia ${nomeCompleto}!\n` +
+            `Segue o valor do que consumiu na CCAP no período ${periodo}.\n` +
+            `Valor: R$ ${valor}.\n\nPix: matheusmatft@gmail.com\n\n` +
+            `*Banco NEON*\n\nFAVOR ENVIAR O COMPROVANTE APÓS O PAGAMENTO\n` +
+            `Obs: Caso tenha alguma dúvida sobre valores ou algum item, só mencionar que verificamos.`;
 
-        lista.innerHTML += `
-            <div class="grid-row grid-cliente-row"
-                onclick="selecionarClienteDaGrid(${c.id}, '${nomeSeguro}')">
-                <span>${nomeCompleto}</span>
-                <span class="grid-cliente-valor">R$ ${Number(c.total).toFixed(2).replace('.', ',')}</span>
-            </div>
-        `;
+        const linha = document.createElement("div");
+        linha.className = "grid-row grid-cliente-row";
+        linha.addEventListener("click", () => selecionarClienteDaGrid(c.id, nomeCompleto));
+
+        const identificacao = document.createElement("div");
+        identificacao.className = "grid-cliente-identificacao";
+        const nome = document.createElement("span");
+        nome.textContent = nomeCompleto;
+        const cobrar = document.createElement("button");
+        cobrar.type = "button";
+        cobrar.className = "btn-cobrar-whatsapp";
+        cobrar.textContent = "Cobrar";
+        cobrar.disabled = !telefoneValido || Number(c.total) <= 0;
+        cobrar.title = !telefoneValido ? "Cliente sem telefone válido" :
+            Number(c.total) <= 0 ? "Cliente sem dívida neste período" : `Cobrar ${nomeCompleto} pelo WhatsApp`;
+        cobrar.setAttribute("aria-label", cobrar.title);
+        cobrar.addEventListener("click", event => {
+            event.stopPropagation();
+            window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, "_blank", "noopener,noreferrer");
+        });
+        identificacao.append(nome, cobrar);
+
+        const divida = document.createElement("span");
+        divida.className = "grid-cliente-valor";
+        divida.textContent = `R$ ${valor}`;
+        linha.append(identificacao, divida);
+        lista.append(linha);
     });
 }
 
